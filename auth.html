@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Авторизация</title>
+    <meta charset="utf-8" />
+</head>
+<body>
+    <div id="message"></div>
+     <p>
+        Введите никнейм: <br /> 
+        <input nickname="username" id="username" />
+    </p>
+     <p>
+        Введите пароль: <br /> 
+        <input password="pass" id="pass" />
+    </p>
+    <button onclick="send()">Отправить</button>
+<script>
+    async function send(){
+ 
+        // получаем введеное в поле имя и возраст
+        const username = document.getElementById("username").value;
+        const pass = document.getElementById("pass").value;
+        // отправляем запрос
+        const response = await fetch("/authhh", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    nickname: username,
+                    password: pass,
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById("message").textContent = data.message;
+            }
+            else
+                console.log(response);
+    }
+</script>
+</body>
+</html>
