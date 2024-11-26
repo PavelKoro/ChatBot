@@ -9,8 +9,8 @@ class TextEmbedding:
         Data_db = {
             'id': [i for i in range(1, len(chunks) + 1)],
             'source': [chunk.metadata['source'] for chunk in chunks],
-            'content': [chunk.page_content for chunk in chunks],
-            'emb': [self.embedding_model.encode(chunk.page_content) for chunk in chunks]
+            'emb': [self.embedding_model.encode(chunk.page_content) for chunk in chunks],
+            'content': [chunk.page_content for chunk in chunks]
         }
         return Data_db
     
