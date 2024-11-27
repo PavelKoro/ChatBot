@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            width: 90vw; /* Занимает 90% ширины окна */
+            height: 90vh; /* Занимает 90% высоты окна */
+            max-width: 1200px; /* Ограничение максимальной ширины */
+            max-height: 900px; /* Ограничение максимальной высоты */
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .chat-history {
+            flex-grow: 1;
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #333;
+            overflow-y: auto;
+            text-align: left;
+            display: flex;
+            flex-direction: column-reverse; /* Для отображения новых сообщений сверху */
+        }
+        .chat-message {
+            margin: 2px 0; /* Уменьшить отступ */
+            padding: 5px 10px; /* Уменьшить внутренний отступ */
+            border-radius: 5px;
+            word-wrap: break-word; /* Автоматический перенос длинных слов */
+            overflow-wrap: break-word; /* Современный подход для переноса слов */
+        }
+        .chat-bot {
+            background-color: #e1f5fe;
+            text-align: left;
+            max-width: 60%; /* Ограничение максимальной ширины сообщения от бота */
+        }
+        .chat-user {
+            background-color: #d1c4e9;
+            text-align: right;
+            margin-left: auto;
+            max-width: 80%; /* Ограничение максимальной ширины */
+        }
+        .error {
+            color: red;
+        }
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            word-wrap: break-word; /* Автоматический перенос в поле ввода */
+            overflow-wrap: break-word;
+        }
+        button {
+            padding: 10px;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chatbot Search</h1>
+        <div class="chat-history" id="chat-history"></div>
+        <div class="input-container">
+            <input type="text" id="query" placeholder="Enter your query here" />
+            <button onclick="sendQuery()">Search</button>
+        </div>
+    </div>
+
+    <script>
+        function formatText(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong><em>$1</em></strong>');
+        }
+
+        async function sendQuery() {
+            const query = document.getElementById('query').value;
+            const chatHistory = document.getElementById('chat-history');
+            if (query.trim() === '') return;
+
+            // Отображение сообщения пользователя сверху
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chat-message chat-user';
+            userMessage.innerHTML = formatText(query);
+            chatHistory.insertBefore(userMessage, chatHistory.firstChild);
+
+            // Очистка поля ввода
+            document.getElementById('query').value = '';
+
+            try {
+                const response = await fetch('/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch');
+
+                const data = await response.json();
+
+                // Отображение сообщения бота сверху
+                const botMessage = document.createElement('div');
+                botMessage.className = 'chat-message chat-bot';
+                botMessage.innerHTML = formatText(data.response);
+                chatHistory.insertBefore(botMessage, chatHistory.firstChild);
+            } catch (error) {
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'chat-message error';
+                errorMessage.innerText = 'Error: ' + error.message;
+                chatHistory.insertBefore(errorMessage, chatHistory.firstChild);
+            }
+        }
+    </script>
+</body>
+</html>

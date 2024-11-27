@@ -9,6 +9,7 @@ class MilvusSingleton:
         if not cls._instance:
             cls._instance = super(MilvusSingleton, cls).__new__(cls, *args, **kwargs)
             cls._instance._initialize_connection()
+            cls._instance.model = TextEmbedding().model_emb()
         return cls._instance
 
     def _initialize_connection(self):
@@ -17,6 +18,7 @@ class MilvusSingleton:
             print("[INFO]: Connected to Milvus")
         except Exception as e:
             print(f"[ERROR]: Failed to connect to Milvus: {e}")
+            raise e
             
 ############################################################## Подключение к БД
     ## Настраивает базу данных с указанным именем
@@ -79,16 +81,22 @@ class MilvusSingleton:
         print(f"[INFO]: Create index in '{collection_name}'")
 
     ## Вставка данных в коллекцию
-    def insert_data(self, collection_name, data):
+    def insert_data(self, collection_name, data): 
+        data_milv = {
+            'id': data['id'],
+            'source': data['source'],
+            'emb': [self.model.encode(data['content'][i]) for i in range(len(data['content']))],
+            'content': data['content']
+        }
+
         collection = self.get_collection(collection_name)
-        collection.insert([data['id'], data['source'], data['emb'], data['content']])
+        collection.insert([data_milv['id'], data_milv['source'], data_milv['emb'], data_milv['content']])
         print(f"[INFO]: Inserted data into {collection_name}")
 
 ############################################################## Поиск по коллекции
     ## Поиск данных в коллекции
     def search_milvus(self, query, collection_name, limit=10):
-        model = TextEmbedding().model_emb()
-        query_embedding = model.encode(query)
+        query_embedding = self.model.encode(query)
         search_params = self.create_index_params()
         collection = self.get_collection(collection_name)
 

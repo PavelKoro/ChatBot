@@ -12,3 +12,11 @@ class TextChunker:
         )
         chunks = text_splitter.split_documents(document)
         return chunks
+    
+    def text_chunk(self, chunks):
+        Data_db = {
+            'id': [i for i in range(1, len(chunks) + 1)],
+            'source': [chunk.metadata['source'] for chunk in chunks],
+            'content': [chunk.page_content for chunk in chunks]
+        }
+        return Data_db
