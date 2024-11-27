@@ -6,37 +6,43 @@
 </head>
 <body>
     <div id="message"></div>
-     <p>
+    <p>
         Введите никнейм: <br /> 
-        <input nickname="username" id="username" />
+        <input type="text" id="username" />
     </p>
-     <p>
+    <p>
         Введите пароль: <br /> 
-        <input password="pass" id="pass" />
+        <input type="password" id="pass" />
     </p>
     <button onclick="send()">Отправить</button>
-<script>
-    async function send(){
- 
-        // получаем введеное в поле имя и возраст
-        const username = document.getElementById("username").value;
-        const pass = document.getElementById("pass").value;
-        // отправляем запрос
-        const response = await fetch("/authhh", {
-                method: "POST",
-                headers: { "Accept": "application/json", "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    nickname: username,
-                    password: pass,
-                })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById("message").textContent = data.message;
+    <script>
+        async function send() {
+            const username = document.getElementById("username").value;
+            const pass = document.getElementById("pass").value;
+
+            try {
+                const response = await fetch("/authhh", {
+                    method: "POST",
+                    headers: { 
+                        "Accept": "application/json", 
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({
+                        nickname: username,
+                        password: pass,
+                    })
+                });
+
+                if (response.ok) {
+                    window.location.href = '/search'; // Перенаправление на страницу поиска
+                } else {
+                    const error = await response.json();
+                    document.getElementById("message").textContent = "Ошибка: " + error.detail;
+                }
+            } catch (error) {
+                document.getElementById("message").textContent = "Ошибка сети: " + error.message;
             }
-            else
-                console.log(response);
-    }
-</script>
+        }
+    </script>
 </body>
 </html>
