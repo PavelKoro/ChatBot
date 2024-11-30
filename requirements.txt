@@ -22,3 +22,7 @@ rank_bm25
 psycopg2-binary
 
 openai
+
+altair
+pandas
+streamlit

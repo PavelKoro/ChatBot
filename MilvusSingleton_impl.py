@@ -95,7 +95,7 @@ class MilvusSingleton:
 
 ############################################################## Поиск по коллекции
     ## Поиск данных в коллекции
-    def search_milvus(self, query, collection_name, limit=10):
+    def search_milvus(self, query, collection_name, limit=15):
         query_embedding = self.model.encode(query)
         search_params = self.create_index_params()
         collection = self.get_collection(collection_name)
