@@ -14,7 +14,6 @@ def create_users_table():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
-                nickname VARCHAR(50) NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL
             );
@@ -29,15 +28,16 @@ def create_users_table():
         if conn:
             conn.close()
 
-def insert_user(person):
+def insert_user(email: str, password: str):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        insert_query = "INSERT INTO users (nickname, email, password) VALUES (%s, %s, %s)"
-        cursor.execute(insert_query, (person.nickname, person.email, person.password))
+        insert_query = "INSERT INTO users (email, password) VALUES (%s, %s) RETURNING id"
+        cursor.execute(insert_query, (email, password))
+        id_user = cursor.fetchone()
         conn.commit()
+        return id_user[0]
     except psycopg2.Error as e:
-        conn.rollback()
         raise
     finally:
         if cursor:
@@ -45,13 +45,30 @@ def insert_user(person):
         if conn:
             conn.close()
 
-def authenticate_user(nickname, password):
+def authenticate_user(email, password):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        query = "SELECT * FROM users WHERE nickname = %s AND password = %s"
-        cursor.execute(query, (nickname, password))
-        return cursor.fetchone()
+        query = "SELECT id FROM users WHERE email = %s AND password = %s"
+        cursor.execute(query, (email, password))
+        id_user = cursor.fetchone()
+        return id_user[0]
+    except psycopg2.Error as e:
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def get_user_id_name(nickname):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT id FROM users WHERE nickname = %s"
+        cursor.execute(query, (nickname))
+        id_user = cursor.fetchone()
+        return id_user[0]
     except psycopg2.Error as e:
         raise
     finally:
