@@ -45,14 +45,19 @@ def insert_user(email: str, password: str):
         if conn:
             conn.close()
 
-def authenticate_user(email, password):
+def authenticate_user_db(email, password):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
         query = "SELECT id FROM users WHERE email = %s AND password = %s"
         cursor.execute(query, (email, password))
         id_user = cursor.fetchone()
-        return id_user[0]
+
+        if id_user:
+            return id_user[0]
+        else:
+            return 0  # Возвращаем 0, если пользователь не найден
+        
     except psycopg2.Error as e:
         raise
     finally:
@@ -60,6 +65,39 @@ def authenticate_user(email, password):
             cursor.close()
         if conn:
             conn.close()
+
+def user_exists(email: str) -> int:
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT id FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        user = cursor.fetchone()
+        return 1 if user is not None else 0
+    except psycopg2.Error as e:
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+# def user_exists(email: str) -> bool:
+#     try:
+#         conn = psycopg2.connect(**DB_CONFIG)
+#         cursor = conn.cursor()
+#         query = "SELECT id FROM users WHERE email = %s"
+#         cursor.execute(query, (email,))
+#         user = cursor.fetchone()
+#         return user is not None
+#     except psycopg2.Error as e:
+#         raise
+#     finally:
+#         if cursor:
+#             cursor.close()
+#         if conn:
+#             conn.close()
 
 def get_user_id_name(nickname):
     try:
