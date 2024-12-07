@@ -39,7 +39,7 @@ def insert_file_list(user_id, filename, content):
         cursor = conn.cursor()
 
         if user_id == 0:
-            return False, f"Нужно зарегистрироваться"
+            return 400, "Нужно зарегистрироваться"
 
         print(f"USER_ID: {user_id}")
 
@@ -48,24 +48,23 @@ def insert_file_list(user_id, filename, content):
         count = cursor.fetchone()[0]
 
         if count > 0:
-            return False, f"Файл с таким названием '{filename}' уже существует в базе данных."
-        
-        # Проверкаа на подобие содержимого
-        cursor.execute('SELECT content FROM files_user WHERE user_id = %s AND filename=%s', (user_id, filename))
-        existing_contents = cursor.fetchall()
+            return 400, f"Файл '{filename}' с таким названием уже существует."
+        # Проверка на подобие содержимого
+        cursor.execute('SELECT filename, content FROM files_user WHERE user_id = %s', (user_id,))
+        existing_files = cursor.fetchall()
 
-        for existing_content in existing_contents:
-            similarity = difflib.SequenceMatcher(None, content, existing_content[0]).ratio()
+        for existing_filename, existing_content in existing_files:
+            similarity = difflib.SequenceMatcher(None, content, existing_content).ratio()
             if similarity >= 0.95:  # 95% совпадение
-                return False, "Файл с таким содержимым уже существует в базе данных."
+                return 401, f"Файл '{existing_filename}' с таким содержанием уже существует"
 
         # После проверки загружаем файл в базу данных
         cursor.execute('INSERT INTO files_user (filename, content, user_id) VALUES (%s, %s, %s)', (filename, content, user_id))
         conn.commit()
 
-        return True, f"Файл '{filename}' загружен в базу данных."
-    except Exception as e:
-        return False, f"Ошибка при работе с базой данных: {e}"
+        return 200, f"Файл '{filename}' успешно загружен."
+    except psycopg2.Error as e:
+        return 500, f"Ошибка при работе с базой данных: {e}"
     finally:
         if conn:
             cursor.close()

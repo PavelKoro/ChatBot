@@ -22,6 +22,8 @@ if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
+if 'page' not in st.session_state:
+    st.session_state['page'] = 'Авторизация'
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -33,8 +35,12 @@ def register_user(email, password):
         response_data = response.json()
         
         if response.status_code == 200 and response_data.get("isRegister") == "true":
-            st.success("Регистрация успешна!")
-            st.session_state['page'] = 'chatbot'
+            st.success("Регистрация успешна! Пожалуйста, авторизуйтесь.")
+            st.session_state['page'] = 'Авторизация'  # Переход на страницу авторизации
+        elif response.status_code == 401:
+            st.error("Пользователь с такой почтой уже зарегистрирован.")
+        elif response.status_code == 400:
+            st.error("Ошибка регистрации. Неверные данные.")
         else:
             st.error("Ошибка при регистрации. Попробуйте еще раз.")
     except requests.exceptions.RequestException as e:
@@ -49,11 +55,14 @@ def login_user(email, password):
             st.success("Добро пожаловать!")
             st.session_state['current_user'] = response_data.get("id")
             st.session_state['authenticated'] = True
-            st.session_state['page'] = 'chatbot'
+            st.session_state['page'] = 'Главная'
+        elif response.status_code == 401:
+            st.error("Пожалуйста, зарегистрируйтесь.")
         else:
             st.error("Ошибка при авторизации. Попробуйте еще раз.")
     except requests.exceptions.RequestException as e:
         st.error(f"Ошибка соединения с сервером: {e}")
+
 
 def send_file_to_api(user_id, file):
     try:
@@ -64,23 +73,27 @@ def send_file_to_api(user_id, file):
         # Отправка файла на API
         response = requests.post("http://localhost:9070/upload", files=files, data=data)
         
+        massage = response.json().get("message")
+        detail_message = response.json().get('detail', massage)
+
         if response.status_code == 200:
-            st.success("Файл успешно отправлен на сервер!")
+            st.success(detail_message)
         else:
-            st.error(f"Ошибка при отправке файла: {response.status_code}")
+            st.error(detail_message)
     except requests.exceptions.RequestException as e:
         st.error(f"Ошибка соединения с сервером: {e}")
 
 def send_question_to_chatbot(user_id, query):
-    """Отправляет вопрос на сервер чатбота и получает ответ."""
     try:
-        response = requests.post(CHATBOT_URL, json={"user_id": user_id, "query": query})
-        if response.status_code == 200:
-            return response.json().get("response", "Чатбот не ответил.")
-        else:
-            return f"Ошибка: {response.status_code}"
+        with st.spinner('Получение ответа от чатбота...'):
+            response = requests.post(CHATBOT_URL, json={"user_id": user_id, "query": query})
+            if response.status_code == 200:
+                return response.json().get("response", "Чатбот не ответил.")
+            else:
+                return f"Ошибка: {response.status_code}"
     except requests.exceptions.RequestException as e:
         return f"Ошибка соединения с сервером: {e}"
+
 
 def get_user_files(user_id):
     try:
@@ -105,16 +118,8 @@ def delete_user_file(user_id, filename):
     except requests.exceptions.RequestException as e:
         st.error(f"Ошибка соединения с сервером: {e}")
 
-# Боковое меню для навигации
-st.sidebar.title("Навигация")
-page = st.sidebar.radio("Перейти на", ["Главная", "Авторизация", "Регистрация", "Chatbot", "Загрузить файл"])
-
-# Основное содержимое
-if page == "Главная":
-    st.title("Главная страница")
-    st.write("Добро пожаловать! Пожалуйста, выберите действие:")
-
-elif page == "Авторизация":
+# Первое окно
+if st.session_state['page'] == "Авторизация":
     st.title("Авторизация")
     email = st.text_input("Email")
     password = st.text_input("Пароль", type="password")
@@ -127,7 +132,10 @@ elif page == "Авторизация":
         else:
             login_user(email, password)
 
-elif page == "Регистрация":
+    if st.button("Нет аккаунта? Зарегистрироваться"):
+        st.session_state['page'] = 'Регистрация'
+
+elif st.session_state['page'] == "Регистрация":
     st.title("Регистрация")
     email = st.text_input("Email")
     password = st.text_input("Пароль", type="password")
@@ -140,59 +148,76 @@ elif page == "Регистрация":
         else:
             register_user(email, password)
 
-elif page == "Chatbot" and st.session_state['authenticated']:
-    st.title("Чатбот")
-    # st.write(f"Добро пожаловать, {st.session_state['current_user']}!")
+    if st.button("Уже есть аккаунт? Авторизоваться"):
+        st.session_state['page'] = 'Авторизация'
 
-    # Отображение сообщений чата из истории
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+elif st.session_state['page'] == "Главная" and st.session_state['authenticated']:
+    # Боковое меню для навигации
+    st.sidebar.title("Навигация")
+    page = st.sidebar.radio("Перейти на", ["Главная", "Chatbot", "Загрузить файл"])
 
-    # Получение пользовательского ввода
-    if prompt := st.chat_input("Введите ваш вопрос:"):
-        # Добавление сообщения пользователя в историю чата
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    # Основное содержимое
+    if page == "Главная":
+        st.title("Главная страница")
+        st.write("Добро пожаловать! Пожалуйста, выберите действие:")
 
-        # Отображение сообщения пользователя
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        if st.button("Выйти"):
+            st.session_state['authenticated'] = False
+            st.session_state['current_user'] = None
+            st.session_state['page'] = 'Авторизация'
 
-        # Отправка вопроса чатботу и получение ответа
-        assistant_response = send_question_to_chatbot(st.session_state['current_user'], prompt)
+    elif page == "Chatbot" and st.session_state['authenticated']:
+        st.title("Чатбот")
+        # st.write(f"Добро пожаловать, {st.session_state['current_user']}!")
 
-        # Отображение ответа ассистента
-        with st.chat_message("assistant"):
-            st.markdown(assistant_response)
+        # Отображение сообщений чата из истории
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-        # Добавление ответа ассистента в историю чата
-        st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+        # Получение пользовательского ввода
+        if prompt := st.chat_input("Введите ваш вопрос:"):
+            # Добавление сообщения пользователя в историю чата
+            st.session_state.messages.append({"role": "user", "content": prompt})
 
-elif page == "Загрузить файл" and st.session_state['authenticated']:
-    st.title("Загрузите файл")
-    user_id = int(st.session_state['current_user'])
-    uploaded_file = st.file_uploader("Загрузите текстовый файл", type="txt")
-    
-    if uploaded_file is not None:
-        file_content = uploaded_file.read().decode("utf-8")
-        st.text_area("Содержимое файла:", file_content, height=200)
+            # Отображение сообщения пользователя
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # Отправка вопроса чатботу и получение ответа
+            assistant_response = send_question_to_chatbot(st.session_state['current_user'], prompt)
+
+            # Отображение ответа ассистента
+            with st.chat_message("assistant"):
+                st.markdown(assistant_response)
+
+            # Добавление ответа ассистента в историю чата
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+
+    elif page == "Загрузить файл" and st.session_state['authenticated']:
+        st.title("Загрузите файл")
+        user_id = int(st.session_state['current_user'])
+        uploaded_file = st.file_uploader("Загрузите текстовый файл", type="txt")
         
-        if st.button("Отправить файл на сервер"):
-            send_file_to_api(user_id, uploaded_file)
+        if uploaded_file is not None:
+            file_content = uploaded_file.read().decode("utf-8")
+            st.markdown(f"<div style='height:200px; overflow:auto; background-color:#f0f0f0; padding:10px; white-space:pre-wrap;'>{file_content}</div>", unsafe_allow_html=True)
+            
+            if st.button("Отправить файл"):
+                send_file_to_api(user_id, uploaded_file)
 
-    st.subheader("Список ваших файлов:")
-    files = get_user_files(user_id)
-    
-    if files:
-        for file in files:
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(file)
-            with col2:
-                if st.button("Удалить", key=file):
-                    delete_user_file(user_id, file)
-    else:
-        st.write("У вас нет загруженных файлов.")
-
+        st.subheader("Список ваших файлов:")
+        files = get_user_files(user_id)
+        
+        if files:
+            for file in files:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(file)
+                with col2:
+                    if st.button("Удалить", key=file):
+                        delete_user_file(user_id, file)
+        else:
+            st.write("У вас нет загруженных файлов.")
 else:
     st.warning("Вы еще не вошли в систему. Пожалуйста, авторизуйтесь.")
