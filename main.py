@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, status, Body, UploadFile, File, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from models import UserRegister, QueryRequest, QueryResponse
-from database import create_users_table, insert_user, authenticate_user, get_user_id_name
+from database import create_users_table, insert_user, authenticate_user_db, user_exists
 from list_file_user_db import create_file_list_db, insert_file_list, delete_file_list_db, get_file_list
 from SearchBD import process_query
 from pydantic import BaseModel
@@ -16,23 +16,23 @@ create_file_list_db()
 def root():
     return "<h2>Главная</h2>"
 
-
-
 @app.post("/reg")
 def register(new_user: UserRegister):
+    if user_exists(new_user.email):
+        raise HTTPException(status_code=401, detail="Пользователь с такой почтой уже зарегистрирован.")
     user_id = insert_user(new_user.email, new_user.password)
     if user_id > 0:
         return {"isRegister": "true"}
     else:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=400, detail="Ошибка регистрации. Попробуйте еще раз.")
 
 @app.post("/auth")
-def register(new_user: UserRegister):
-    user_id = authenticate_user(new_user.email, new_user.password)
+def authenticate_user_endpoint(new_user: UserRegister):
+    user_id = authenticate_user_db(new_user.email, new_user.password)
     if user_id > 0:
         return {"id": f"{user_id}"}
     else:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Нужно зарегистрироваться")
 
 
 @app.get("/search")
@@ -59,10 +59,13 @@ async def favicon():
 async def upload_file(user_id: int = Form(...), file: UploadFile = File(...)):
     content = await file.read()
     filename = file.filename
-    success, message = insert_file_list(user_id, filename, content.decode('utf-8'))
-    if not success:
-        raise HTTPException(status_code=400, detail=message)
-    return {"status": 200, "message": message}
+    status_code, message = insert_file_list(user_id, filename, content.decode('utf-8'))
+    # print(f"status_code: {status_code}; message: {message}")
+    
+    if status_code == 200:
+        return {"status": status_code, "message": message}
+    else:
+        raise HTTPException(status_code=status_code, detail=message)
 
 @app.delete("/delete/{filename}")
 async def delete_file(user_id: int, filename: str):
